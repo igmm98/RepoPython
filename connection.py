@@ -5,7 +5,7 @@ class callUsers:
         self.connection = pymysql.connect(
             host='localhost',
             user='root',
-            password='#Ignacio98',
+            password='#',
             db='testdb'
 
         )
