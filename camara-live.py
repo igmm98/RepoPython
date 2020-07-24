@@ -1,18 +1,38 @@
 from tkinter import messagebox
+from imutils import paths
 import subprocess
 import cv2
 import face_recognition
+import os
+from connection import callUsers
 
-# Set de imagenes
-imagen_yo = face_recognition.load_image_file('set\one.JPG')
+# Set de imagenes - one by one
+imagen_yo = face_recognition.load_image_file('set\RUT19853982\one.JPG')
 encoding_personal = face_recognition.face_encodings(imagen_yo)[0]
 
 encoding_conocidos = [
     encoding_personal
 ]
 nombres_encoding = [
-    "IGNACIO"
+    "19853982"
 ]
+# Set de imagenes - varias imagenes
+# imagePaths = list(paths.list_images("set"))
+
+# for (i, imagePath) in enumerate(imagePaths):
+    # Directorio: nombre deteccion
+#    name = imagePath.split(os.path.sep)[-2]
+#    image = cv2.imread(imagePath)
+#    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    # Encuadres rostros set
+#    box = face_recognition.face_locations(rgb, model="cnn")
+#    encodings = face_recognition.face_encodings(rgb, box)
+
+#    for encod in encodings:
+#        encoding_conocidos.append(encod)
+#        nombres_encoding.append(name)
+
 
 cam = cv2.VideoCapture(0)
 
@@ -25,13 +45,14 @@ while True:
     ret_val, img = cam.read()
 
     if ret_val:
+
         
         # Escalamiento para optimizacion de lectura
         img_rgb = img[:, :, ::-1]
         img_rgb = cv2.resize(img_rgb, (0, 0), fx=1.0/5, fy=1.0/5)
 
         # Metodo para deteccion - cnn: Mayor presicion, mas lentitud - hog: Mayor velocidad, menos presicion
-        ubi_rostro = face_recognition.face_locations(img_rgb, model="cnn") 
+        ubi_rostro = face_recognition.face_locations(img_rgb, model="hog") 
         encodings_rostros = face_recognition.face_encodings(img_rgb, ubi_rostro)
 
         
@@ -43,12 +64,13 @@ while True:
             coincidencias = face_recognition.compare_faces(encoding_conocidos, encoding)
             
             if True in coincidencias:
-                nom = nombres_encoding[coincidencias.index(True)]
+                llamada = callUsers()
+                nom = llamada.select_user(nombres_encoding[coincidencias.index(True)])
                 color = (0, 255, 0)
                 con = 0
                     
             else:
-                nom ="DESCONOCIDO"
+                nom = "DESCONOCIDO"
                 color = (0, 0, 255)
                 con += 1
 
@@ -56,15 +78,14 @@ while True:
    
 
     for ((top, right, bottom, left), nom) in zip(ubi_rostro, nombres_rostros):
-
-        # Alerta - Puede ser timer o contador de Frames
+        
+        # Alerta - Puede iniciar por timer o contador de Frames
         if con>5:
-            messagebox.showwarning(message="Unknown user detected", title="Alert")
+            #messagebox.showwarning(message="Unknown user detected", title="Alert")
             cv2.imwrite('desconocido.jpg', img)
-            subprocess.run('python WhatsappMessage.py', shell=True)
+            subprocess.run('python msg-whatsapp.py', shell=True)
             con = 0
-        
-        
+
         # Re-escalamiento
         top = int(top * 5)
         right = int(right * 5)
