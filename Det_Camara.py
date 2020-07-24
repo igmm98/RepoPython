@@ -18,29 +18,28 @@ cam = cv2.VideoCapture(0)
 
 
 contadorDesconocidos = 0
+nombres_rostros = []
 
 while True:
 
-    nombres_rostros = []
-    nom = ""
-    
     ret_val, img = cam.read()
 
     if ret_val:
-
         
+        # Escalamiento para optimizacion de lectura
         img_rgb = img[:, :, ::-1]
         img_rgb = cv2.resize(img_rgb, (0, 0), fx=1.0/5, fy=1.0/5)
 
-
-        ubi_rostro = face_recognition.face_locations(img_rgb)
+        # Metodo para deteccion - cnn: Mayor presicion, mas lentitud - hog: Mayor velocidad, menos presicion
+        ubi_rostro = face_recognition.face_locations(img_rgb, model="cnn") 
         encodings_rostros = face_recognition.face_encodings(img_rgb, ubi_rostro)
 
-        nom = "DESCONOCIDO"
-        color = (0, 255, 0)
-
+        
+        color = (0, 255, 0) # Verde por defecto
+        
+        nombres_rostros = []
         for encoding in encodings_rostros:
-            
+            nom = ""
             coincidencias = face_recognition.compare_faces(encoding_conocidos, encoding)
             
             if True in coincidencias:
@@ -52,29 +51,27 @@ while True:
                 nom ="DESCONOCIDO"
                 color = (0, 0, 255)
                 contadorDesconocidos+=1
-                
+
             nombres_rostros.append(nom)
    
 
-        for (top, right, bottom, left) in ubi_rostro:
-            
-            
-            # Alertas
-            if contadorDesconocidos>5:
-                subprocess.run('python WhatsappMessage.py', shell=True)
-                messagebox.showinfo('ALERTA', 'No se ha podido detectar un usuario registrado')
-                contadorDesconocidos = 0
-                cv2.imwrite('desconocido.jpg', img)
+    for ((top, right, bottom, left), nom) in zip(ubi_rostro, nombres_rostros):
+        # Alerta
+        if contadorDesconocidos>5:
+            subprocess.run('python WhatsappMessage.py', shell=True)
+            messagebox.showinfo('ALERTA', 'No se ha podido detectar un usuario registrado')
+            contadorDesconocidos = 0
+            cv2.imwrite('desconocido.jpg', img)
+        
+        #Re-escalamiento
+        top = int(top * 5)
+        right = int(right * 5)
+        bottom = int(bottom * 5)
+        left = int(left * 5)
 
-            #Re-escalamiento
-            top = int(top * 5)
-            right = int(right * 5)
-            bottom = int(bottom * 5)
-            left = int(left * 5)
-
-            # Rectangulo y nombre
-            cv2.rectangle(img, (left, top), (right, bottom), color, 2)
-            cv2.putText(img, nom, (left, bottom + 20), cv2.FONT_HERSHEY_COMPLEX, 0.6, (255,255,255), 1)
+        # Rectangulo y nombre
+        cv2.rectangle(img, (left, top), (right, bottom), color, 2)
+        cv2.putText(img, nom, (left, bottom + 20), cv2.FONT_HERSHEY_COMPLEX, 0.6, (255,255,255), 1)
 
     cv2.imshow('Live', img)   
 
