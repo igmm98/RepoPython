@@ -4,40 +4,51 @@ import subprocess
 import cv2
 import face_recognition
 import os
-from connection import callUsers
+import msgWhatsapp
+import datetime
+import saveUnknowns
+import time
+import connection
+import smsMessage
+
+#All images from file - Todas las imagenes dentro de la carpeta 'set'
+#El nombre que recibe el rostro detectado es el nombre del archivo hasta donde haya un '_'
+#EX: PeterParker_Spiderman, El rostro se llamara 'PeterParker'
+encoding_conocidos = []
+nombres_encoding = []
+
+for filename in os.listdir('set/'):
+
+    imagen_yo = face_recognition.load_image_file('set/{}'.format(filename))
+
+    # Seccion de encuadre para informar a face_recognition que la imagen en su totalidad contiene el rostro
+    # De otro modo face_recognition intenta detectar por partes en la imagen y genera error
+    height, width, _ = imagen_yo.shape
+    face_location = (0, width, height, 0)
+    #
+    encoding_personal = face_recognition.face_encodings(imagen_yo, known_face_locations=[face_location])[0]
+    encoding_conocidos.append(encoding_personal)
+    sub_index = filename.index('_')
+    nombres_encoding.append(filename[0:sub_index])
+
+
 
 # Set de imagenes - one by one
-imagen_yo = face_recognition.load_image_file('set\RUT19853982\one.JPG')
-encoding_personal = face_recognition.face_encodings(imagen_yo)[0]
+#imagen_yo = face_recognition.load_image_file('set\RUT19853982\one.JPG')
+#encoding_personal = face_recognition.face_encodings(imagen_yo)[0]
 
-encoding_conocidos = [
-    encoding_personal
-]
-nombres_encoding = [
-    "19853982"
-]
-# Set de imagenes - varias imagenes
-# imagePaths = list(paths.list_images("set"))
-
-# for (i, imagePath) in enumerate(imagePaths):
-    # Directorio: nombre deteccion
-#    name = imagePath.split(os.path.sep)[-2]
-#    image = cv2.imread(imagePath)
-#    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    # Encuadres rostros set
-#    box = face_recognition.face_locations(rgb, model="cnn")
-#    encodings = face_recognition.face_encodings(rgb, box)
-
-#    for encod in encodings:
-#        encoding_conocidos.append(encod)
-#        nombres_encoding.append(name)
+#encoding_conocidos = [
+#    encoding_personal
+#]
+#nombres_encoding = [
+#    "19853982"
+#]
 
 
 cam = cv2.VideoCapture(0)
 
 
-con = 0 # Cuenta Frames
+con = 0 # Cuenta Frames con "Conocidos" o "Desconocidos"
 nombres_rostros = []
 
 while True:
@@ -64,14 +75,16 @@ while True:
             coincidencias = face_recognition.compare_faces(encoding_conocidos, encoding)
             
             if True in coincidencias:
-                llamada = callUsers()
+                llamada = connection.callUsers()
+                llamada.select_user(nombres_encoding[coincidencias.index(True)])
                 nom = llamada.select_user(nombres_encoding[coincidencias.index(True)])
+                #nom = nombres_encoding[coincidencias.index(True)]
                 color = (0, 255, 0)
                 con = 0
                     
             else:
                 nom = "DESCONOCIDO"
-                color = (0, 0, 255)
+                color = (0, 0, 255) #Se modifica color del recuadro para rostros desconocidos
                 con += 1
 
             nombres_rostros.append(nom)
@@ -79,11 +92,22 @@ while True:
 
     for ((top, right, bottom, left), nom) in zip(ubi_rostro, nombres_rostros):
         
-        # Alerta - Puede iniciar por timer o contador de Frames
+        # Alerta - Podria iniciar por timer o contador de Frames
+        #EX1: Contar por segundos el tiempo que un rostro desconocido es detectado
+        #EX2: En la imagen durante repetidos frames se detecta un desconocido
         if con>5:
             #messagebox.showwarning(message="Unknown user detected", title="Alert")
-            cv2.imwrite('desconocido.jpg', img)
-            subprocess.run('python msg-whatsapp.py', shell=True)
+            dateNow = datetime.datetime.now()
+            dateIs = dateNow.strftime("%b-%d-%Y__%H-%M")
+            global name_SavedImg
+            name_SavedImg = "unknown{}.jpg".format(dateIs)
+            cv2.imwrite(name_SavedImg, img)
+            saveUnknowns.UploadUnknowns(name_SavedImg)
+            time.sleep(1)
+            msgWhatsapp.SendAlert(name_SavedImg)
+            #Envio de alerta sms al profe
+            smsMessage.sendSMS()
+            
             con = 0
 
         # Re-escalamiento
